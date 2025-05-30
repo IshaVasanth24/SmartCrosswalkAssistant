@@ -8,7 +8,7 @@ from playsound import playsound
 import tempfile
 import os
 
-# Load YOLO model (your trained model)
+# Load YOLO model
 model = YOLO(r"C:\Users\hp\OneDrive\Desktop\CrosswalkAssistant\yolov11s_blind_aid_best.pt")
 
 # Text-to-speech setup
@@ -18,8 +18,9 @@ engine.setProperty('rate', 150)
 def detect_objects(image):
     results = model(image)
     boxes = results[0].boxes
-    if boxes is None or len(boxes) == 0:
-        return pd.DataFrame()
+
+    if boxes is None or boxes.xyxy is None or len(boxes.xyxy) == 0:
+        return pd.DataFrame(columns=['xmin', 'ymin', 'xmax', 'ymax', 'name', 'confidence'])
 
     xyxy = boxes.xyxy.cpu().numpy()
     conf = boxes.conf.cpu().numpy()
@@ -29,7 +30,7 @@ def detect_objects(image):
     data = []
     for i in range(len(xyxy)):
         x1, y1, x2, y2 = xyxy[i]
-        label = class_names[cls[i]]
+        label = class_names[cls[i]] if cls[i] in class_names else str(cls[i])
         confidence = conf[i]
         data.append([x1, y1, x2, y2, label, confidence])
 
@@ -61,8 +62,11 @@ def process_video(frame, prev_positions=None):
         if label in vehicle_classes:
             vehicle_boxes.append((row['xmin'], row['ymin'], row['xmax'], row['ymax']))
 
-    crosswalk_present = any(row['name'] == crosswalk_class for _, row in detections_df.iterrows())
-    crosswalk_boxes = detections_df[detections_df['name'] == crosswalk_class][['xmin', 'ymin', 'xmax', 'ymax']].values
+    crosswalk_present = 'name' in detections_df.columns and any(row['name'] == crosswalk_class for _, row in detections_df.iterrows())
+    crosswalk_boxes = (
+        detections_df[detections_df['name'] == crosswalk_class][['xmin', 'ymin', 'xmax', 'ymax']].values
+        if 'name' in detections_df.columns else []
+    )
 
     vehicle_on_crosswalk = False
     for vxmin, vymin, vxmax, vymax in vehicle_boxes:
@@ -97,23 +101,14 @@ def process_video(frame, prev_positions=None):
 
 def speak(text, lang_code="en"):
     try:
-        # Generate speech
         tts = gTTS(text=text, lang=lang_code)
-        
-        # Save to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
             temp_audio = fp.name
             tts.save(temp_audio)
-        
-        # Play the audio
         playsound(temp_audio)
-
-        # Clean up
         os.remove(temp_audio)
-
     except Exception as e:
         print("Speech Error:", e)
-
 
 LANG_CODES = {
     "English": "en",

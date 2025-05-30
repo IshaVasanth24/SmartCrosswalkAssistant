@@ -4,12 +4,16 @@ import tempfile
 import numpy as np
 from utils import process_video, speak, LANG_CODES, SAFE_MSG, UNSAFE_MSG
 
+# This must be the FIRST Streamlit command
 st.set_page_config(page_title="🦮 Smart Crosswalk Assistant", layout="centered")
+
 st.title("🦯 Smart Crosswalk Assistant for Visually Impaired")
 
+# Language selection
 lang_choice = st.sidebar.selectbox("🌐 Choose Language", list(LANG_CODES.keys()))
 lang_code = LANG_CODES[lang_choice]
 
+# Input method selection
 st.subheader("Choose Input Method")
 input_mode = st.radio("", ("Live Camera", "Upload Video"), horizontal=True)
 
@@ -50,7 +54,7 @@ if input_mode == "Live Camera":
         st.write(f"Detections: {detections}")
         st.markdown(f"### {safety_text}")
 
-else:
+else:  # Upload Video mode
     uploaded_file = st.file_uploader("Upload a video", type=['mp4', 'avi', 'mov', 'mpeg4'])
     if uploaded_file is not None:
         tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -72,7 +76,6 @@ else:
                 safety_text = "✅ Safe to Cross" if is_safe else "❌ Do Not Cross"
                 st.write(f"Detections: {detections}")
                 st.markdown(f"### {safety_text}")
-
                 
         finally:
             cap.release()
